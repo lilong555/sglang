@@ -308,7 +308,7 @@ pub(super) async fn prompt_ids(state: &Arc<AppState>, body: Vec<u8>) -> Option<V
             &openai.settings,
             &openai.model,
             render,
-            None,
+            Some(openai.pieces.clone()),
         )
         .ok()?;
         ids
