@@ -162,14 +162,24 @@ impl StreamState {
             return Ok(Payload::Events(Vec::new()));
         };
         if let Some(message) = content.pointer("/error/message").and_then(Value::as_str) {
+            // Python's `/generate` sends no code (a ValueError, so a 400); an
+            // engine that sends one keeps its status, typed as `create_error_response` types it.
+            let code = content
+                .pointer("/error/code")
+                .and_then(Value::as_u64)
+                .and_then(|code| u16::try_from(code).ok())
+                .filter(|code| (400..600).contains(code))
+                .unwrap_or(400);
+            let err_type = match code {
+                400 => "BadRequestError".to_owned(),
+                _ => code.to_string(),
+            };
             if !self.started {
-                return Err(error_reply(message, "BadRequestError", 400));
+                return Err(error_reply(message, &err_type, code));
             }
             self.failed = true;
             return Ok(Payload::Events(vec![stream_error_event(
-                message,
-                "BadRequestError",
-                400,
+                message, &err_type, code,
             )]));
         }
         self.started = true;
