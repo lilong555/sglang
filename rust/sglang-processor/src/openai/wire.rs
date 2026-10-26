@@ -174,6 +174,13 @@ impl StreamState {
                 None => (400, "BadRequestError".to_owned(), "BadRequestError"),
             };
             if !self.started {
+                // Python's `/generate` streams a scheduler abort as a frame and
+                // sends only 400 error frames, so a 500 is a host's own failure:
+                // `handle_request`'s generic `InternalServerError`.
+                if code == 500 {
+                    let message = format!("Internal server error: {message}");
+                    return Err(error_reply(&message, "InternalServerError", code));
+                }
                 return Err(error_reply(message, &unary_type, code));
             }
             self.failed = true;
